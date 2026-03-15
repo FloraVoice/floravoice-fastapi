@@ -27,7 +27,6 @@ async def create_flower(
 @router.get("/", status_code=status.HTTP_200_OK, response_model=List[FlowerResponse])
 async def get_all_flowers(
     db: AsyncSession = Depends(get_db),
-    admin: AdminModel = Depends(get_current_admin),
 ):
     return await flower_service.get_all_flowers(db)
 

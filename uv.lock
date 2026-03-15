@@ -272,6 +272,7 @@ dependencies = [
     { name = "asyncpg" },
     { name = "bcrypt" },
     { name = "fastapi", extra = ["standard"] },
+    { name = "greenlet", marker = "sys_platform == 'darwin'" },
     { name = "pyjwt" },
     { name = "sqlalchemy" },
 ]
@@ -286,6 +287,7 @@ requires-dist = [
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "bcrypt", specifier = ">=5.0.0" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.135.1" },
+    { name = "greenlet", marker = "sys_platform == 'darwin'", specifier = ">=3.3.2" },
     { name = "pyjwt", specifier = ">=2.12.1" },
     { name = "sqlalchemy", specifier = ">=2.0.48" },
 ]
