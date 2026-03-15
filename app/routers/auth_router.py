@@ -8,6 +8,7 @@ from app.schemas.auth.admin_schemas import Admin, AdminCreate, AdminLogin
 from app.services import auth_service
 from app.exceptions.auth_exceptions import AccountAlreadyExist, InvalidCredentials
 from app.exceptions.common import DatabaseIntegrityError
+from app.dependancies.auth import get_current_admin
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -47,8 +48,8 @@ async def refresh_token(token_data: TokenRefresh, db: AsyncSession = Depends(get
 
 # --- Admin ---
 
-@router.post("/admin/register", status_code=status.HTTP_201_CREATED, response_model=Admin)
-async def admin_register(data: AdminCreate, db: AsyncSession = Depends(get_db)):
+@router.post("/admin/", status_code=status.HTTP_201_CREATED, response_model=Admin, dependencies=[Depends(get_current_admin)])
+async def post_admin(data: AdminCreate, db: AsyncSession = Depends(get_db)):
     try:
         return await auth_service.register_admin(data, db)
 
