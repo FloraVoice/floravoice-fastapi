@@ -2,12 +2,12 @@ from app.schemas.auth.common import AccountCreate, AccountLogin, Account
 
 
 class UserCreate(AccountCreate):
-    pass
+    address: str
 
 
 class UserLogin(AccountLogin):
-    pass 
+    pass
 
 
 class User(Account):
-    pass
+    address: str
