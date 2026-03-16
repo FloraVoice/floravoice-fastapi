@@ -7,8 +7,8 @@ from sqlalchemy.exc import IntegrityError
 from asyncpg.exceptions import UniqueViolationError
 
 from app.schemas.auth.common import Token, Account, AccountCreate, AccountLogin
-from app.schemas.auth.user_schemas import UserCreate, User as UserSchema, UserLogin
-from app.schemas.auth.admin_schemas import AdminCreate, Admin as AdminSchema, AdminLogin
+from app.schemas.auth.user_schemas import UserCreate, UserLogin, User as UserSchema
+from app.schemas.auth.admin_schemas import AdminLogin, Admin as AdminSchema
 from app.repositories.user_repository import UserRepository
 from app.repositories.admin_repository import AdminRepository
 from app.dependancies.auth import (
@@ -38,24 +38,21 @@ class AccountRepository(Protocol):
     async def insert(db: AsyncSession, obj_in: dict) -> object: ...
 
 
-async def _register_account(
+async def _register(
     account_data: AccountCreate,
     db: AsyncSession,
     repository: Type[AccountRepository],
     response_schema: Type[T],
 ) -> T:
-    existing_email = await repository.select_by_email(db, account_data.email)
-    if existing_email:
+    if await repository.select_by_email(db, account_data.email):
         raise AccountAlreadyExist(f"Account with email '{account_data.email}' already exists")
 
-    existing_username = await repository.select_by_username(db, account_data.username)
-    if existing_username:
+    if await repository.select_by_username(db, account_data.username):
         raise AccountAlreadyExist(f"Account with username '{account_data.username}' already exists")
 
     try:
         account_dict = account_data.model_dump(exclude={"password"})
         account_dict["hashed_password"] = hash_password(account_data.password)
-
         account = await repository.insert(db, account_dict)
         return response_schema.model_validate(account)
 
@@ -67,26 +64,23 @@ async def _register_account(
             raise DatabaseIntegrityError(str(original))
 
 
-async def _login_account(
+async def _login(
     credentials: AccountLogin,
     db: AsyncSession,
     repository: Type[AccountRepository],
 ) -> Token:
     account = await repository.select_by_email(db, credentials.email)
 
-    if not account:
+    if not account or not verify_password(credentials.password, str(account.hashed_password)):
         raise InvalidCredentials("Invalid email or password")
 
-    if not verify_password(credentials.password, str(account.hashed_password)):
-        raise InvalidCredentials("Invalid email or password")
-
-    access_token = create_access_token(UUID(str(account.id)))
-    refresh_token = create_refresh_token(UUID(str(account.id)))
-
-    return Token(access_token=access_token, refresh_token=refresh_token)
+    return Token(
+        access_token=create_access_token(UUID(str(account.id))),
+        refresh_token=create_refresh_token(UUID(str(account.id))),
+    )
 
 
-async def _refresh_account_token(
+async def _refresh(
     refresh_token: str,
     db: AsyncSession,
     repository: Type[AccountRepository],
@@ -98,39 +92,31 @@ async def _refresh_account_token(
         if not account:
             raise InvalidCredentials("Invalid refresh token")
 
-        new_access_token = create_access_token(UUID(str(account.id)))
-        new_refresh_token = create_refresh_token(UUID(str(account.id)))
-
-        return Token(access_token=new_access_token, refresh_token=new_refresh_token)
+        return Token(
+            access_token=create_access_token(UUID(str(account.id))),
+            refresh_token=create_refresh_token(UUID(str(account.id))),
+        )
     except InvalidCredentials:
         raise
     except Exception:
         raise InvalidCredentials("Invalid refresh token")
 
 
-# --- User ---
-
 async def register_user(user_data: UserCreate, db: AsyncSession) -> UserSchema:
-    return await _register_account(user_data, db, UserRepository, UserSchema)
+    return await _register(user_data, db, UserRepository, UserSchema)
 
 
 async def login_user(credentials: UserLogin, db: AsyncSession) -> Token:
-    return await _login_account(credentials, db, UserRepository)
+    return await _login(credentials, db, UserRepository)
 
 
 async def refresh_user_token(refresh_token: str, db: AsyncSession) -> Token:
-    return await _refresh_account_token(refresh_token, db, UserRepository)
-
-
-# --- Admin ---
-
-async def register_admin(admin_data: AdminCreate, db: AsyncSession) -> AdminSchema:
-    return await _register_account(admin_data, db, AdminRepository, AdminSchema)
+    return await _refresh(refresh_token, db, UserRepository)
 
 
 async def login_admin(credentials: AdminLogin, db: AsyncSession) -> Token:
-    return await _login_account(credentials, db, AdminRepository)
+    return await _login(credentials, db, AdminRepository)
 
 
 async def refresh_admin_token(refresh_token: str, db: AsyncSession) -> Token:
-    return await _refresh_account_token(refresh_token, db, AdminRepository)
+    return await _refresh(refresh_token, db, AdminRepository)

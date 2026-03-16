@@ -4,3 +4,7 @@ class InvalidCredentials(Exception):
 
 class AccountAlreadyExist(Exception):
     pass
+
+
+class AccountNotFound(Exception):
+    pass

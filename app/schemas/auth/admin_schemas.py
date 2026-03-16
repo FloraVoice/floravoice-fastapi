@@ -5,8 +5,12 @@ class AdminCreate(AccountCreate):
     pass
 
 
+class AdminUpdate(AccountCreate):
+    pass
+
+
 class AdminLogin(AccountLogin):
-    pass 
+    pass
 
 
 class Admin(Account):
