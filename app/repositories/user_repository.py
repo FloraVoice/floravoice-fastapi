@@ -2,7 +2,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from app.models.user import User
 
@@ -27,6 +27,28 @@ class UserRepository:
     async def select_by_username(db: AsyncSession, username: str) -> Optional[User]:
         result = await db.execute(select(User).where(User.username == username))
         return result.scalar_one_or_none()
+
+    @staticmethod
+    async def select_by_phone_number(db: AsyncSession, phone_number: str) -> Optional[User]:
+        result = await db.execute(select(User).where(User.phone_number == phone_number))
+        return result.scalar_one_or_none()
+
+    @staticmethod
+    async def search(db: AsyncSession, query: str, limit: int) -> List[User]:
+        pattern = f"%{query}%"
+        result = await db.execute(
+            select(User)
+            .where(
+                or_(
+                    User.email.ilike(pattern),
+                    User.username.ilike(pattern),
+                    User.phone_number.ilike(pattern),
+                    User.address.ilike(pattern),
+                )
+            )
+            .limit(limit)
+        )
+        return list(result.scalars().all())
 
     @staticmethod
     async def insert(db: AsyncSession, obj_in: dict) -> User:

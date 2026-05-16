@@ -8,8 +8,6 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
-from app.repositories.user_repository import UserRepository
-from app.models.user import User as UserModel
 from app.repositories.admin_repository import AdminRepository
 from app.models.admin import Admin as AdminModel
 from app.config import settings
@@ -20,7 +18,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 5
 REFRESH_TOKEN_EXPIRE_DAYS = 30
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/admin/login")
 
 
 def hash_password(password: str) -> str:
@@ -68,22 +66,6 @@ def verify_token(token: str) -> str:
         return account_id
     except jwt.PyJWTError:
         raise credentials_exception
-
-
-async def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: AsyncSession = Depends(get_db)
-) -> UserModel:
-    user_id = verify_token(token)
-    user = await UserRepository.select_by_id(db, UUID(user_id))
-    
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
-        )
-    
-    return user
 
 
 async def get_current_admin(

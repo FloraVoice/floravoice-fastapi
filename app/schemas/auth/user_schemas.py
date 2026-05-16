@@ -1,17 +1,23 @@
-from app.schemas.auth.common import AccountCreate, AccountLogin, Account
+from pydantic import BaseModel, EmailStr
+
+from app.schemas.auth.common import Account
 
 
-class UserCreate(AccountCreate):
+class UserBase(BaseModel):
+    email: EmailStr
+    username: str
+    phone_number: str
     address: str
 
 
-class UserUpdate(AccountCreate):
-    address: str
+class UserCreate(UserBase):
+    pass
 
 
-class UserLogin(AccountLogin):
+class UserUpdate(UserBase):
     pass
 
 
 class User(Account):
+    phone_number: str
     address: str

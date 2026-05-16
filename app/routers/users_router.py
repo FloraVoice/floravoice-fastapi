@@ -1,18 +1,17 @@
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
-from app.dependancies.auth import get_current_admin
 from app.schemas.auth.user_schemas import User, UserCreate, UserUpdate
 from app.services import user_service
 from app.exceptions.auth_exceptions import AccountAlreadyExist, AccountNotFound
 from app.exceptions.common import DatabaseIntegrityError
 
 
-router = APIRouter(prefix="/users", tags=["Users"], dependencies=[Depends(get_current_admin)])
+router = APIRouter(prefix="/users", tags=["Users"])
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=User)
@@ -30,6 +29,15 @@ async def get_all_users(db: AsyncSession = Depends(get_db)):
     return await user_service.get_all_users(db)
 
 
+@router.get("/search", status_code=status.HTTP_200_OK, response_model=List[User])
+async def search_users(
+    q: str = Query(..., min_length=1),
+    limit: int = Query(10, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+):
+    return await user_service.search_users(q, limit, db)
+
+
 @router.get("/{user_id}", status_code=status.HTTP_200_OK, response_model=User)
 async def get_user(user_id: UUID, db: AsyncSession = Depends(get_db)):
     try:
@@ -42,6 +50,10 @@ async def get_user(user_id: UUID, db: AsyncSession = Depends(get_db)):
 async def update_user(user_id: UUID, data: UserUpdate, db: AsyncSession = Depends(get_db)):
     try:
         return await user_service.update_user(user_id, data, db)
+    except AccountAlreadyExist as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except DatabaseIntegrityError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     except AccountNotFound as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
